@@ -443,7 +443,8 @@ def pdf_text(path: str) -> str:
         return ""
 
 
-def extract_last_page_as_index(exp_dir: str, exp: str) -> Optional[str]:
+def extract_last_page_as_index(exp_dir: str, exp: str,
+                               exp_idx: int = 0, exp_total: int = 0) -> Optional[str]:
     """
     Busca el PDF de demanda en exp_dir, extrae su última página
     y la guarda como INDICE_{exp}.pdf en la misma carpeta.
@@ -471,8 +472,12 @@ def extract_last_page_as_index(exp_dir: str, exp: str) -> Optional[str]:
                 print(f"[indice] '{exp}': sin DEMANDA en nombre, usando fallback '{fn}'")
                 break
 
+    _cnt    = f"[{exp_idx}/{exp_total}]  " if exp_total else ""
+    _rest   = exp_total - exp_idx
+    _sufijo = f"  —  {_rest} por procesar" if _rest > 0 else "  —  último"
+
     if demanda_pdf is None:
-        print(f"[indice] WARN '{exp}': no se encontró PDF de DEMANDA para extraer índice")
+        print(f"[indice] {_cnt}WARN '{exp}': no se encontró PDF de DEMANDA para extraer índice{_sufijo}")
         return None
 
     out_path = os.path.join(exp_dir, f"INDICE_{exp}.pdf")
@@ -487,10 +492,10 @@ def extract_last_page_as_index(exp_dir: str, exp: str) -> Optional[str]:
         new_doc.save(out_path)
         new_doc.close()
         doc.close()
-        print(f"[indice] '{exp}': índice extraído de '{src_fn}' (última pág. {last + 1}/{last + 1})")
+        print(f"[indice] {_cnt}'{exp}': índice extraído de '{src_fn}' (última pág. {last + 1}/{last + 1}){_sufijo}")
         return out_path
     except Exception as e_fitz:
-        print(f"[indice] WARN '{exp}': fitz falló ({e_fitz}), reintentando con pypdf…")
+        print(f"[indice] {_cnt}WARN '{exp}': fitz falló ({e_fitz}), reintentando con pypdf…")
 
     try:
         from pypdf import PdfReader, PdfWriter
@@ -499,11 +504,11 @@ def extract_last_page_as_index(exp_dir: str, exp: str) -> Optional[str]:
         writer.add_page(reader.pages[-1])
         with open(out_path, "wb") as f:
             writer.write(f)
-        print(f"[indice] '{exp}': índice extraído de '{src_fn}' (pypdf, última pág. {len(reader.pages)}/{len(reader.pages)})")
+        print(f"[indice] {_cnt}'{exp}': índice extraído de '{src_fn}' (pypdf, última pág. {len(reader.pages)}/{len(reader.pages)}){_sufijo}")
         return out_path
     except Exception as e_pypdf:
-        print(f"[indice] ERROR '{exp}': no se pudo extraer última página de '{src_fn}': "
-              f"fitz={e_fitz} | pypdf={e_pypdf}")
+        print(f"[indice] {_cnt}ERROR '{exp}': no se pudo extraer última página de '{src_fn}': "
+              f"fitz={e_fitz} | pypdf={e_pypdf}{_sufijo}")
         return None
 
 # ──────────────────────────────────────────
@@ -786,11 +791,12 @@ def _ctfdo_type(fn_kw: str) -> Optional[Tuple[str, str]]:
 
 def process_exp(exp: str, exp_dir: str, rules: List[Tuple[str, str, str]],
                 idx_num: Optional[int],
-                asunto_codigo: str = "", common_dir: str = "") -> List[Dict]:
+                asunto_codigo: str = "", common_dir: str = "",
+                exp_idx: int = 0, exp_total: int = 0) -> List[Dict]:
     rows: List[Dict] = []
 
     # ── 1. Índice (última página de la DEMANDA) ──────────────────
-    idx_pdf = extract_last_page_as_index(exp_dir, exp)
+    idx_pdf = extract_last_page_as_index(exp_dir, exp, exp_idx=exp_idx, exp_total=exp_total)
     items: List[IdxItem] = []
     if idx_pdf:
         items = parse_index(pdf_text(idx_pdf))
@@ -1398,7 +1404,8 @@ def main(root: str) -> None:
     }
 
     all_rows: List[Dict] = []
-    for exp_folder in exps:
+    total_exps = len(exps)
+    for i, exp_folder in enumerate(exps, 1):
         exp_key = exp_folder if exp_folder in exp_idx_map else folder_alias.get(exp_folder, exp_folder)
         info    = exp_idx_map.get(exp_key, {})
         idx_num = info.get("idx_num") if info else None
@@ -1408,6 +1415,7 @@ def main(root: str) -> None:
             exp_folder, os.path.join(in_root, exp_folder), rules, idx_num,
             asunto_codigo=codes_map.get(exp_key, ""),
             common_dir=os.path.join(root, "doc_comun"),
+            exp_idx=i, exp_total=total_exps,
         )
         all_rows.extend(exp_rows)
 
