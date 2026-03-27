@@ -1109,6 +1109,25 @@ def process_exp(exp: str, exp_dir: str, rules: List[Tuple[str, str, str]],
                 "ruta":                    os.path.join(common_dir, fn_common),
             })
 
+    # ── Documento notarial común (solo si el índice tiene "Escritura de fusión") ──
+    if common_dir and items:
+        _notarial_fn, _notarial_idx_kw = _NOTARIAL_COMMON_DOC
+        notarial_item = _find_in_index(_notarial_idx_kw, items)
+        if notarial_item:
+            rows.append({
+                "asunto_codigo":           asunto_codigo,
+                "referencia_demanda":      exp,
+                "nombre_fichero_original": _notarial_fn,
+                "nombre_correcto":         f"DOC. {notarial_item.num} {notarial_item.desc}",
+                "numero_documento":        str(notarial_item.num),
+                "entrada_indice":          notarial_item.desc,
+                "numero_indice":           idx_num if idx_num is not None else "",
+                "status":                  "OK",
+                "motivo":                  _notarial_idx_kw,
+                "fn_kw":                   _notarial_idx_kw,
+                "ruta":                    os.path.join(common_dir, _notarial_fn),
+            })
+
     # ── Fila del fichero de índice ────────────────────────────────
     if idx_pdf:
         rows.append({
