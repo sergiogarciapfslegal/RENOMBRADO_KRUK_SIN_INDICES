@@ -1,0 +1,12 @@
+venv/
+__pycache__/
+*.pyc
+*.p12
+*.pfx
+*.csv
+*.xlsx
+*.pdf
+sign_log.csv
+stamp_log.csv
+requirements.txt
+backups/
