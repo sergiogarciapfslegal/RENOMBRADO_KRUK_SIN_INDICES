@@ -251,10 +251,14 @@ def main(root: str, cert_arg: str, passphrase: bytes) -> None:
     print(f"\n[demandas] {len(demandas)} ficheros a firmar (en su misma ruta)\n")
 
     log_rows: List[Dict] = []
+    total = len(demandas)
 
-    for row in demandas:
-        src = (row.get("ruta") or "").strip()
-        fn  = os.path.basename(src)
+    for i, row in enumerate(demandas, 1):
+        src       = (row.get("ruta") or "").strip()
+        fn        = os.path.basename(src)
+        restantes = total - i
+        contador  = f"[{i}/{total}]"
+        sufijo    = f"  —  {restantes} por firmar" if restantes > 0 else "  —  último"
 
         log_row: Dict = {
             "asunto_codigo": (row.get("asunto_codigo") or "").strip(),
@@ -268,7 +272,7 @@ def main(root: str, cert_arg: str, passphrase: bytes) -> None:
             log_row["status"] = "FAIL"
             log_row["motivo"] = f"Fichero no encontrado: {src}"
             log_rows.append(log_row)
-            print(f"  ✗  {fn}  →  FAIL (no encontrado)")
+            print(f"  ✗  {contador}  {fn}  →  FAIL (no encontrado){sufijo}")
             continue
 
         # Firmar a fichero temporal y sustituir el original al terminar
@@ -278,14 +282,14 @@ def main(root: str, cert_arg: str, passphrase: bytes) -> None:
             os.replace(tmp_path, src)   # sustitución atómica
             log_row["status"] = "OK"
             log_row["motivo"] = "Firmado en su ruta original"
-            print(f"  ✓  {fn}")
+            print(f"  ✓  {contador}  {fn}{sufijo}")
         except Exception as e:
             # Limpiar el temporal si quedó a medias
             if os.path.exists(tmp_path):
                 os.unlink(tmp_path)
             log_row["status"] = "FAIL"
             log_row["motivo"] = f"{type(e).__name__}: {e}"
-            print(f"  ✗  {fn}  →  {type(e).__name__}: {e}")
+            print(f"  ✗  {contador}  {fn}  →  {type(e).__name__}: {e}{sufijo}")
 
         log_rows.append(log_row)
 
