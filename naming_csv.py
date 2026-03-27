@@ -1484,37 +1484,6 @@ def main(root: str) -> None:
     # ── demandas.xlsx ──────────────────────────────────────────────
     demandas_rows = collect_demandas(in_root, exps, codes_map, exp_idx_map, folder_alias)
 
-    # Añadir TESTIMONIO FUSION solo a expedientes cuyo índice tiene "Escritura de fusión"
-    _notarial_fn, _notarial_idx_kw = _NOTARIAL_COMMON_DOC
-    _notarial_path = os.path.join(root, "doc_comun", _notarial_fn)
-    # Construir set de expedientes que tienen la entrada en el índice (status OK)
-    _exps_with_escritura: set = {
-        r["referencia_demanda"]
-        for r in all_rows
-        if r.get("status") == "OK"
-        and al(_notarial_idx_kw) in al(r.get("entrada_indice", ""))
-    }
-    for exp_folder in sorted(_exps_with_escritura):
-        exp_key   = exp_folder if exp_folder in exp_idx_map else folder_alias.get(exp_folder, exp_folder)
-        info      = exp_idx_map.get(exp_key, {})
-        tipo_proc = info.get("tipo_proc", "")
-        city      = info.get("city", "")
-        is_mon_especial = (
-            "monitorio" in al(tipo_proc)
-            and al(city) in _MONITORIO_EXCLUSION_CITIES_NORM
-        )
-        clase = "NOTARIAL MON" if is_mon_especial else "NOTARIAL"
-        demandas_rows.append({
-            "asunto_codigo":           codes_map.get(exp_key, ""),
-            "referencia_demanda":      exp_folder,
-            "nombre_fichero_original": _notarial_fn,
-            "CLASE":                   clase,
-            "texto":                   "NOTARIAL",
-            "ruta":                    _notarial_path,
-            "MACRO":                   "",
-        })
-    if _exps_with_escritura:
-        print(f"[demandas] NOTARIAL añadido a {len(_exps_with_escritura)} expediente(s) con 'Escritura de fusión' en el índice")
     demandas_path   = os.path.join(root, "demandas.xlsx")
     demandas_fields = ["asunto_codigo", "codigo_2", "ruta", "texto", "Fecha", "Clase", "Opciones", "Macro"]
     wb_d = _openpyxl.Workbook()
