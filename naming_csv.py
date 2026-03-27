@@ -442,6 +442,70 @@ def pdf_text(path: str) -> str:
     except Exception:
         return ""
 
+
+def extract_last_page_as_index(exp_dir: str, exp: str) -> Optional[str]:
+    """
+    Busca el PDF de demanda en exp_dir, extrae su última página
+    y la guarda como INDICE_{exp}.pdf en la misma carpeta.
+    Estrategia de búsqueda (igual que collect_demandas):
+      1. Primer PDF cuyo nombre contiene 'demanda'
+      2. Fallback: {exp}_firmado.pdf
+    Devuelve la ruta al fichero creado, o None si no hay demanda.
+    """
+    all_pdfs = sorted(f for f in os.listdir(exp_dir) if f.lower().endswith(".pdf"))
+
+    demanda_pdf: Optional[str] = None
+
+    # 1. Buscar por nombre con 'demanda'
+    for fn in all_pdfs:
+        if "demanda" in al(fn):
+            demanda_pdf = os.path.join(exp_dir, fn)
+            break
+
+    # 2. Fallback: {exp}_firmado.pdf (misma lógica que collect_demandas)
+    if demanda_pdf is None:
+        firmado_name = f"{exp}_firmado.pdf"
+        for fn in all_pdfs:
+            if fn.lower() == firmado_name.lower():
+                demanda_pdf = os.path.join(exp_dir, fn)
+                print(f"[indice] '{exp}': sin DEMANDA en nombre, usando fallback '{fn}'")
+                break
+
+    if demanda_pdf is None:
+        print(f"[indice] WARN '{exp}': no se encontró PDF de DEMANDA para extraer índice")
+        return None
+
+    out_path = os.path.join(exp_dir, f"INDICE_{exp}.pdf")
+    src_fn   = os.path.basename(demanda_pdf)
+
+    try:
+        import fitz
+        doc = fitz.open(demanda_pdf)
+        last = len(doc) - 1
+        new_doc = fitz.open()
+        new_doc.insert_pdf(doc, from_page=last, to_page=last)
+        new_doc.save(out_path)
+        new_doc.close()
+        doc.close()
+        print(f"[indice] '{exp}': índice extraído de '{src_fn}' (última pág. {last + 1}/{last + 1})")
+        return out_path
+    except Exception as e_fitz:
+        print(f"[indice] WARN '{exp}': fitz falló ({e_fitz}), reintentando con pypdf…")
+
+    try:
+        from pypdf import PdfReader, PdfWriter
+        reader = PdfReader(demanda_pdf)
+        writer = PdfWriter()
+        writer.add_page(reader.pages[-1])
+        with open(out_path, "wb") as f:
+            writer.write(f)
+        print(f"[indice] '{exp}': índice extraído de '{src_fn}' (pypdf, última pág. {len(reader.pages)}/{len(reader.pages)})")
+        return out_path
+    except Exception as e_pypdf:
+        print(f"[indice] ERROR '{exp}': no se pudo extraer última página de '{src_fn}': "
+              f"fitz={e_fitz} | pypdf={e_pypdf}")
+        return None
+
 # ──────────────────────────────────────────
 # PARSING DEL ÍNDICE
 # ──────────────────────────────────────────
@@ -721,12 +785,12 @@ def _ctfdo_type(fn_kw: str) -> Optional[Tuple[str, str]]:
 # ──────────────────────────────────────────
 
 def process_exp(exp: str, exp_dir: str, rules: List[Tuple[str, str, str]],
-                idx_num: Optional[int], indices_dir: str,
+                idx_num: Optional[int],
                 asunto_codigo: str = "", common_dir: str = "") -> List[Dict]:
     rows: List[Dict] = []
 
-    # ── 1. Índice ────────────────────────────────────────────────
-    idx_pdf = find_index_pdf(idx_num, indices_dir)
+    # ── 1. Índice (última página de la DEMANDA) ──────────────────
+    idx_pdf = extract_last_page_as_index(exp_dir, exp)
     items: List[IdxItem] = []
     if idx_pdf:
         items = parse_index(pdf_text(idx_pdf))
@@ -1305,13 +1369,10 @@ def validate_index_coverage(indices_dir: str,
 # ──────────────────────────────────────────
 
 def main(root: str) -> None:
-    in_root     = os.path.join(root, "IN")
-    indices_dir = os.path.join(root, "IN", "iNDICES")
+    in_root = os.path.join(root, "IN")
 
     if not os.path.isdir(in_root):
         raise FileNotFoundError(f"No existe la carpeta IN/: {in_root}")
-    if not os.path.isdir(indices_dir):
-        print(f"[WARN] Carpeta de índices no encontrada: {indices_dir}")
 
     rules = _RULES
 
@@ -1319,15 +1380,6 @@ def main(root: str) -> None:
     if not os.path.isfile(datatape_path):
         raise FileNotFoundError(f"No se encontró el datatape: {datatape_path}")
     exp_idx_map = load_datatape(datatape_path)
-
-    # Conjunto de números de índice referenciados por algún expediente del datatape
-    used_idx_nums = {info["idx_num"] for info in exp_idx_map.values()
-                     if info.get("idx_num") is not None}
-
-    # ── Validación de cobertura de índices ────────────────────────
-    validate_index_coverage(indices_dir, rules, root,
-                             common_docs=_COMMON_DOCS,
-                             used_idx_nums=used_idx_nums)
 
     exps = sorted(
         d for d in os.listdir(in_root)
@@ -1353,7 +1405,7 @@ def main(root: str) -> None:
         if idx_num is None:
             print(f"[WARN] Expediente '{exp_folder}' no encontrado en datatape.xlsx")
         exp_rows = process_exp(
-            exp_folder, os.path.join(in_root, exp_folder), rules, idx_num, indices_dir,
+            exp_folder, os.path.join(in_root, exp_folder), rules, idx_num,
             asunto_codigo=codes_map.get(exp_key, ""),
             common_dir=os.path.join(root, "doc_comun"),
         )

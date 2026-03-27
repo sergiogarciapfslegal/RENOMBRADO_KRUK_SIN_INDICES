@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd \"/Users/sergio.garcia/Desktop/CODE/RENOMBRADO_KRUK_SIN INDICES\" && f=$(jq -r '.tool_input.file_path // \"\"') && [ -n \"$f\" ] && git add \"$f\" && { git diff --cached --quiet || git commit -m \"auto: $(basename $f)\" && git push; } 2>/dev/null || true",
+            "statusMessage": "Committing and pushing changes…"
+          }
+        ]
+      }
+    ]
+  }
+}
