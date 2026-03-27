@@ -1412,7 +1412,7 @@ def main(root: str) -> None:
         all_rows.extend(exp_rows)
 
     out_path = os.path.join(root, "documentos.xlsx")
-    fields = ["asunto_codigo", "codigo_2", "ruta", "Texto", "Fecha", "Clase", "status", "numero_indice"]
+    fields = ["asunto_codigo", "codigo_2", "ruta", "Texto", "Fecha", "Clase", "status"]
     xlsx_rows = []
     for r in all_rows:
         exp      = r["referencia_demanda"]
@@ -1440,7 +1440,6 @@ def main(root: str) -> None:
             "Fecha":         "",
             "Clase":         clase,
             "status":        status,
-            "numero_indice": r.get("numero_indice", ""),
         })
     import openpyxl as _openpyxl
     wb_out = _openpyxl.Workbook()
