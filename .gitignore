@@ -10,3 +10,4 @@ sign_log.csv
 stamp_log.csv
 requirements.txt
 backups/
+.env
