@@ -77,9 +77,9 @@ MARGIN_TOP_MM  = 3.0
 MARGIN_LEFT_MM = 3.0
 MAX_RIGHT_MM   = 3.0
 FONT_NAME      = "Helvetica-Bold"
-FONT_SIZE      = 14
-BOX_PADDING_PT = 4.0
-BOX_STROKE_PT  = 0.8
+FONT_SIZE      = 11
+BOX_PADDING_PT = 3.0
+BOX_STROKE_PT  = 0.6
 
 # Plazas cuyos expedientes se estampan
 PLAZAS_STAMP: Set[str] = {"arrecife", "arrecife de lanzarote", "gandia", "telde"}
