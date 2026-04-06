@@ -576,6 +576,14 @@ def find_index_pdf(idx_num: Optional[int], indices_dir: str) -> Optional[str]:
 # CLASIFICACIÓN POR NOMBRE DE FICHERO
 # ──────────────────────────────────────────
 
+def _is_plantilla_resumen(fn_norm: str) -> bool:
+    """Detecta ficheros de plantilla resumen tolerando el typo 'pantilla' (falta la L)."""
+    tiene_plantilla = "plantilla" in fn_norm or "pantilla" in fn_norm
+    tiene_resumen   = "resumen" in fn_norm
+    es_plantilla    = fn_norm == "plantilla.pdf" or fn_norm.endswith("_plantilla.pdf")
+    return tiene_plantilla and (tiene_resumen or es_plantilla)
+
+
 def _channel(fn: str) -> str:
     """Detecta canal de comunicación en el nombre del fichero."""
     t = al(fn)
@@ -597,7 +605,7 @@ def classify(fn: str) -> Tuple[str, str]:
     # ── Ficheros a ignorar ────────────────────────────────────────
     if t.startswith("indice"):
         return "SKIP", "indice"
-    if "plantilla" in t and ("resumen" in t or t.strip() == "plantilla"):
+    if _is_plantilla_resumen(t):
         return "SKIP", "plantilla_resumen"
     if base.lower().endswith("_ocr.pdf"):
         # PODER INVESTCAPITAL_ocr.pdf: duplicado OCR, se usa el original
@@ -821,7 +829,7 @@ def process_exp(exp: str, exp_dir: str, rules: List[Tuple[str, str, str]],
         # Aplicar las mismas exclusiones que en el bucle principal
         if fn_norm.startswith("indice"):
             continue
-        if "plantilla" in fn_norm and ("resumen" in fn_norm or fn_norm == "plantilla.pdf" or fn_norm.endswith("_plantilla.pdf")):
+        if _is_plantilla_resumen(fn_norm):
             continue
         if fn.lower().endswith("_ocr.pdf"):
             continue
@@ -951,7 +959,7 @@ def process_exp(exp: str, exp_dir: str, rules: List[Tuple[str, str, str]],
             continue
 
         # PLANTILLAS RESUMEN → añadir directamente sin cruzar reglas ni índice
-        if "plantilla" in fn_norm and ("resumen" in fn_norm or fn_norm == "plantilla.pdf" or fn_norm.endswith("_plantilla.pdf")):
+        if _is_plantilla_resumen(fn_norm):
             rows.append({
                 "asunto_codigo":           asunto_codigo,
                 "referencia_demanda":      exp,
