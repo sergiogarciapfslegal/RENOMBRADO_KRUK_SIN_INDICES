@@ -1163,7 +1163,7 @@ def process_exp(exp: str, exp_dir: str, rules: List[Tuple[str, str, str]],
             r["status"] = "FAIL"
             r["motivo"] = f"Número de documento duplicado: {r['numero_documento']} | {r['motivo']}"
 
-    return rows
+    return rows, len(items)
 
 # ──────────────────────────────────────────
 # DEMANDAS CSV
@@ -1431,6 +1431,7 @@ def main(root: str) -> None:
     }
 
     all_rows: List[Dict] = []
+    total_idx_items = 0
     total_exps = len(exps)
     for i, exp_folder in enumerate(exps, 1):
         exp_key = exp_folder if exp_folder in exp_idx_map else folder_alias.get(exp_folder, exp_folder)
@@ -1438,13 +1439,14 @@ def main(root: str) -> None:
         idx_num = info.get("idx_num") if info else None
         if idx_num is None:
             print(f"[WARN] Expediente '{exp_folder}' no encontrado en datatape.xlsx")
-        exp_rows = process_exp(
+        exp_rows, idx_count = process_exp(
             exp_folder, os.path.join(in_root, exp_folder), rules, idx_num,
             asunto_codigo=codes_map.get(exp_key, ""),
             common_dir=os.path.join(root, "doc_comun"),
             exp_idx=i, exp_total=total_exps,
         )
         all_rows.extend(exp_rows)
+        total_idx_items += idx_count
 
     out_path = os.path.join(root, "documentos.xlsx")
     fields = ["asunto_codigo", "codigo_2", "ruta", "Texto", "Fecha", "Clase", "status"]
@@ -1486,7 +1488,16 @@ def main(root: str) -> None:
 
     ok   = sum(1 for r in all_rows if r["status"] == "OK")
     fail = sum(1 for r in all_rows if r["status"] == "FAIL")
+    doc_xlsx = sum(1 for r in xlsx_rows
+                   if r["Texto"].startswith("DOC") and r["status"] == "OK")
+    cobertura = f"{doc_xlsx / total_idx_items * 100:.1f}%" if total_idx_items else "N/A"
+    sep = "─" * 50
+    print(sep)
     print(f"OK: {ok}  |  FAIL: {fail}  |  Total filas: {len(all_rows)}")
+    print(f"Docs en índices (total)  : {total_idx_items}")
+    print(f"Docs en Excel  (DOC.*) : {doc_xlsx}")
+    print(f"Cobertura                : {cobertura}")
+    print(sep)
     print(f"Excel generado: {out_path}")
 
     # ── demandas.xlsx ──────────────────────────────────────────────
