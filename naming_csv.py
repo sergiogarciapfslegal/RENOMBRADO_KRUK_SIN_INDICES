@@ -125,6 +125,8 @@ _RULES: List[Tuple[str, str, str]] = sorted([
     ("movimientos 2",          "Liquidación tras el pase a mora",             "DOC. X MOVIMIENTOS 2"),
     ("movimientos 2",          "Movimientos de origen de la deuda",           "DOC. X MOVIMIENTOS 2"),  # fallback si solo hay este tipo en el índice
     # Aliases para ficheros con nomenclatura alternativa (ej. _firmado_TIPO)
+    ("liquidacion",            "Liquidación tras el pase a mora",             "DOC. X MOVIMIENTOS 2"),
+    ("liquidacion",            "Movimientos de origen de la deuda",           "DOC. X MOVIMIENTOS 2"),  # fallback
     ("certificado ic",         "Certificado de deuda",                        "DOC. X CERTIFICADO IC"),
     ("declaracion responsable","Declaración de responsabilidad",              "DOC. X DECLARACIÓN RESPONSABLE"),
     ("declaracion responsable","Declaracion responsable",                     "DOC. X DECLARACIÓN RESPONSABLE"),
@@ -188,6 +190,7 @@ _CLASE_MAP: Dict[str, str] = {
     al("MOVIMIENTOS"):                                  "MOVIMIENTOS",
     al("movimientos 1"):                                "MOVIMIENTOS",
     al("movimientos 2"):                                "MOVIMIENTOS 2",
+    al("liquidacion"):                                  "MOVIMIENTOS 2",
     al("TESTIMONIO"):                                   "TESTIMONIO",
     al("titularidad bancaria"):                         "CERTIF",
     al("Certificado de titularidad de la cuenta"):      "CERTIF",   # doc común
@@ -219,6 +222,7 @@ _CLASE_MAP_MON: Dict[str, str] = {
     al("MOVIMIENTOS"):                                  "EXTRACTO MON",
     al("movimientos 1"):                                "EXTRACTO MON",
     al("movimientos 2"):                                "MOVIMIENTOS 2 MON",
+    al("liquidacion"):                                  "MOVIMIENTOS 2 MON",
     al("TESTIMONIO"):                                   "TESTIMONIO MON",
     al("titularidad bancaria"):                         "CERTIF DEUDA MON",
     al("Certificado de titularidad de la cuenta"):      "CERTIF DEUDA MON",  # doc común
