@@ -591,9 +591,10 @@ def _is_plantilla_resumen(fn_norm: str) -> bool:
 def _channel(fn: str) -> str:
     """Detecta canal de comunicación en el nombre del fichero."""
     t = al(fn)
-    if "burofax" in t:             return "BUROFAX"
-    if re.search(r"\bsms\b", t):   return "SMS"
-    if "email" in t:               return "EMAIL"
+    if "burofax" in t:              return "BUROFAX"
+    if re.search(r"\bsms\b", t):    return "SMS"
+    if "email" in t:                return "EMAIL"
+    if re.search(r"\bmail\b", t):   return "EMAIL"
     return "UNKNOWN"
 
 def classify(fn: str) -> Tuple[str, str]:
@@ -845,7 +846,7 @@ def process_exp(exp: str, exp_dir: str, rules: List[Tuple[str, str, str]],
             continue
         if "welcome" in fn_norm and "letter" in fn_norm:
             continue
-        fn_match = fn_norm.replace('_', ' ')
+        fn_match = re.sub(r'\bmail\b', 'email', fn_norm.replace('_', ' '))
         for fn_kw, _, _ in rules:
             if _fn_matches(fn_kw, fn_match):
                 ct = _ctfdo_type(fn_kw)
@@ -993,7 +994,7 @@ def process_exp(exp: str, exp_dir: str, rules: List[Tuple[str, str, str]],
         }
 
         # ── Buscar regla por nombre de fichero (col A) ──────────
-        fn_match = fn_norm.replace('_', ' ')
+        fn_match = re.sub(r'\bmail\b', 'email', fn_norm.replace('_', ' '))
 
         # ── Detección específica MOVIMIENTOS vs MOVIMIENTOS 2 ────
         # Los tokens sueltos "1"/"2" en fn_match pueden coincidir con el
