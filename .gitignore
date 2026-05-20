@@ -11,3 +11,4 @@ stamp_log.csv
 requirements.txt
 backups/
 .env
+lanzar_demandas_kruk.bat
