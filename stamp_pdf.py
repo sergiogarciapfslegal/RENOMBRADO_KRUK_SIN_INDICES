@@ -88,6 +88,44 @@ PLAZAS_STAMP: Set[str] = {"arrecife", "arrecife de lanzarote", "gandia", "telde"
 TEXTOS_EXCLUIR: Set[str] = {"DEMANDA", "PLANTILLAS RESUMEN"}
 
 # ──────────────────────────────────────────
+# LOG TEE (duplica stdout a fichero, omitiendo lineas tecnicas)
+# ──────────────────────────────────────────
+
+class _LogTee:
+    _SKIP = ("[venv]", "[deps]", "Traceback ", "  File ")
+
+    def __init__(self, log_path: str):
+        self._terminal = sys.stdout
+        self._log_path = log_path
+        self._buf = ""
+
+    def write(self, msg: str) -> None:
+        self._terminal.write(msg)
+        self._buf += msg
+        while "\n" in self._buf:
+            line, self._buf = self._buf.split("\n", 1)
+            stripped = line.lstrip()
+            if not any(stripped.startswith(p) for p in self._SKIP):
+                try:
+                    with open(self._log_path, "a", encoding="utf-8") as f:
+                        f.write(line + "\n")
+                except Exception:
+                    pass
+
+    def flush(self) -> None:
+        self._terminal.flush()
+
+
+def _init_log(root: str, fase: str) -> None:
+    log_path = os.path.join(root, "proceso_demandas.log")
+    sys.stdout = _LogTee(log_path)
+    print()
+    print("-" * 72)
+    print(fase)
+    print("-" * 72)
+
+
+# ──────────────────────────────────────────
 # HELPERS
 # ──────────────────────────────────────────
 
@@ -362,6 +400,8 @@ def process(root: str, datatape_path: str, naming_path: str) -> None:
         raise FileNotFoundError(f"No se encuentra el datatape: {datatape_path}")
     if not os.path.isfile(naming_path):
         raise FileNotFoundError(f"No se encuentra el CSV de naming: {naming_path}")
+
+    _init_log(root, "FASE 2: ESTAMPADO")
 
     in_root    = os.path.join(root, "IN")
     common_dir = os.path.join(root, "doc_comun")

@@ -68,6 +68,54 @@ def _ensure_deps() -> None:
 _ensure_deps()
 
 # ──────────────────────────────────────────
+# LOG TEE (duplica stdout a fichero, omitiendo lineas tecnicas)
+# ──────────────────────────────────────────
+
+class _LogTee:
+    """Redirige stdout a pantalla Y a fichero log, omitiendo lineas tecnicas.
+    Las lineas con prefijos en _SKIP siguen apareciendo en la consola (Jenkins)
+    pero no se vuelcan al fichero de log."""
+    _SKIP = ("[venv]", "[deps]", "Traceback ", "  File ")
+
+    def __init__(self, log_path: str):
+        self._terminal = sys.stdout
+        self._log_path = log_path
+        self._buf = ""
+
+    def write(self, msg: str) -> None:
+        self._terminal.write(msg)
+        self._buf += msg
+        while "\n" in self._buf:
+            line, self._buf = self._buf.split("\n", 1)
+            stripped = line.lstrip()
+            if not any(stripped.startswith(p) for p in self._SKIP):
+                try:
+                    with open(self._log_path, "a", encoding="utf-8") as f:
+                        f.write(line + "\n")
+                except Exception:
+                    pass
+
+    def flush(self) -> None:
+        self._terminal.flush()
+
+
+def _init_log(root: str, fase: str, truncate: bool = False) -> None:
+    """Inicializa el tee de logging. Solo la primera fase debe truncar."""
+    from datetime import datetime
+    log_path = os.path.join(root, "proceso_demandas.log")
+    if truncate:
+        with open(log_path, "w", encoding="utf-8") as f:
+            f.write("=" * 72 + "\n")
+            f.write(f"PROCESO DEMANDAS KRUK - {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+            f.write("=" * 72 + "\n")
+    sys.stdout = _LogTee(log_path)
+    print()
+    print("-" * 72)
+    print(fase)
+    print("-" * 72)
+
+
+# ──────────────────────────────────────────
 # CONFIG
 # ──────────────────────────────────────────
 
@@ -1411,6 +1459,8 @@ def main(root: str) -> None:
 
     if not os.path.isdir(in_root):
         raise FileNotFoundError(f"No existe la carpeta IN/: {in_root}")
+
+    _init_log(root, "FASE 1: CLASIFICACION Y NOMENCLATURA", truncate=True)
 
     rules = _RULES
 

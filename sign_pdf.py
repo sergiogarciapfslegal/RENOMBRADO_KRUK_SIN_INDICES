@@ -89,6 +89,44 @@ SIG_MARGIN_R   = 20    # margen desde el borde derecho
 SIG_MARGIN_B   = 20    # margen desde el borde inferior
 
 # ──────────────────────────────────────────
+# LOG TEE (duplica stdout a fichero, omitiendo lineas tecnicas)
+# ──────────────────────────────────────────
+
+class _LogTee:
+    _SKIP = ("[venv]", "[deps]", "Traceback ", "  File ")
+
+    def __init__(self, log_path: str):
+        self._terminal = sys.stdout
+        self._log_path = log_path
+        self._buf = ""
+
+    def write(self, msg: str) -> None:
+        self._terminal.write(msg)
+        self._buf += msg
+        while "\n" in self._buf:
+            line, self._buf = self._buf.split("\n", 1)
+            stripped = line.lstrip()
+            if not any(stripped.startswith(p) for p in self._SKIP):
+                try:
+                    with open(self._log_path, "a", encoding="utf-8") as f:
+                        f.write(line + "\n")
+                except Exception:
+                    pass
+
+    def flush(self) -> None:
+        self._terminal.flush()
+
+
+def _init_log(root: str, fase: str) -> None:
+    log_path = os.path.join(root, "proceso_demandas.log")
+    sys.stdout = _LogTee(log_path)
+    print()
+    print("-" * 72)
+    print(fase)
+    print("-" * 72)
+
+
+# ──────────────────────────────────────────
 # CARGA DEL CERTIFICADO
 # ──────────────────────────────────────────
 
@@ -238,6 +276,8 @@ def main(root: str, cert_arg: str, passphrase: bytes) -> None:
 
     if not os.path.isfile(demandas_csv):
         raise FileNotFoundError(f"No se encuentra demandas.csv: {demandas_csv}")
+
+    _init_log(root, "FASE 3: FIRMA DIGITAL")
 
     # ── Comprobar si ya están todos firmados ──────────────────────
     if _all_signed(log_path):

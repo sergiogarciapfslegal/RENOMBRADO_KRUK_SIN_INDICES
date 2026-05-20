@@ -8,6 +8,7 @@ __pycache__/
 *.pdf
 sign_log.csv
 stamp_log.csv
+proceso_demandas.log
 requirements.txt
 backups/
 .env
