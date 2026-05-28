@@ -1188,7 +1188,13 @@ def process_exp(exp: str, exp_dir: str, rules: List[Tuple[str, str, str]],
             })
 
     # ── Documento notarial común (solo si el índice tiene "Escritura de fusión") ──
-    if common_dir and items:
+    # ── TESTIMONIO FUSION BANKIA-CAIXA: solo si la cartera NO tiene
+    #    un documento específico en _PORTFOLIO_COMMON_DOCS (p.ej. ONEY)
+    _portfolio_al = al(portfolio) if portfolio else ""
+    _has_portfolio_doc = bool(portfolio) and any(
+        al(port_kw) in _portfolio_al for port_kw, _, _ in _PORTFOLIO_COMMON_DOCS
+    )
+    if common_dir and items and not _has_portfolio_doc:
         _notarial_fn, _notarial_idx_kw = _NOTARIAL_COMMON_DOC
         notarial_item = _find_in_index(_notarial_idx_kw, items)
         if notarial_item:
