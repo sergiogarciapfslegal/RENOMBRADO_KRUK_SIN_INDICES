@@ -143,6 +143,17 @@ _NOTARIAL_COMMON_DOC: Tuple[str, str] = (
     "Escritura de fusión",
 )
 
+# Documentos comunes específicos por cartera (Name of Portfolio del datatape).
+# Se añaden a documentos.xlsx solo cuando:
+#   1. La cartera del expediente contiene `portfolio_kw`
+#   2. El índice del expediente contiene la entrada `idx_kw`
+# Lista de tuplas: (portfolio_kw, fichero_en_doc_comun, idx_kw)
+_PORTFOLIO_COMMON_DOCS: List[Tuple[str, str, str]] = [
+    ("ONEY",
+     "CAMBIO DENOMINACION SOCIAL_ONEY.pdf",
+     "Escritura de cambio de denominación del acreedor original"),
+]
+
 # Expansión de tokens cortos usados en col A del Excel
 _TOKEN_EXPAND = {"cont": "contenido"}
 
@@ -253,6 +264,7 @@ _CLASE_MAP: Dict[str, str] = {
     al("INDICE"):                                       "INDICE",
     al("firmado acuerdo"):                              "ACUERDO",
     al("Escritura de fusión"):                          "NOTARIAL",  # doc común
+    al("Escritura de cambio de denominación del acreedor original"): "NOTARIAL",  # doc común ONEY
 }
 
 # Mapeo fn_kw → Clase para procedimiento monitorio en plaza especial
@@ -284,6 +296,7 @@ _CLASE_MAP_MON: Dict[str, str] = {
     al("INDICE"):                                       "INDICE MON",
     al("firmado acuerdo"):                              "ACUERDO MON",
     al("Escritura de fusión"):                          "NOTARIAL MON",  # doc común
+    al("Escritura de cambio de denominación del acreedor original"): "NOTARIAL MON",  # doc común ONEY
 }
 
 # Ciudades que, en procedimiento monitorio, usan _CLASE_MAP_MON
@@ -358,13 +371,14 @@ def load_datatape(path: str) -> Dict[str, Dict]:
         if cell is not None:
             headers[str(cell).strip()] = i
 
-    _COL_EXP   = "Original Contract Number"
-    _COL_REF2  = "Whole Case Number"
-    _COL_CITY  = "City Court"
-    _COL_TIPO  = "Tipo procedimiento"
-    _COL_IDX   = "Indice"
+    _COL_EXP       = "Original Contract Number"
+    _COL_REF2      = "Whole Case Number"
+    _COL_CITY      = "City Court"
+    _COL_TIPO      = "Tipo procedimiento"
+    _COL_IDX       = "Indice"
+    _COL_PORTFOLIO = "Name of Portfolio"
 
-    missing = [c for c in [_COL_EXP, _COL_REF2, _COL_CITY, _COL_TIPO, _COL_IDX]
+    missing = [c for c in [_COL_EXP, _COL_REF2, _COL_CITY, _COL_TIPO, _COL_IDX, _COL_PORTFOLIO]
                if c not in headers]
     if missing:
         print(f"[datatape] WARN columnas no encontradas: {missing}")
@@ -385,18 +399,20 @@ def load_datatape(path: str) -> Dict[str, Dict]:
 
     # ── Leer filas de datos ───────────────────────────────────────
     for row in ws.iter_rows(min_row=2, values_only=True):
-        exp     = _cell_str(_get(row, _COL_EXP))
-        ref2    = _cell_str(_get(row, _COL_REF2))
-        city    = str(_get(row, _COL_CITY) or "").strip()
-        tipo    = str(_get(row, _COL_TIPO) or "").strip()
-        idx_raw = _get(row, _COL_IDX)
+        exp       = _cell_str(_get(row, _COL_EXP))
+        ref2      = _cell_str(_get(row, _COL_REF2))
+        city      = str(_get(row, _COL_CITY) or "").strip()
+        tipo      = str(_get(row, _COL_TIPO) or "").strip()
+        portfolio = str(_get(row, _COL_PORTFOLIO) or "").strip()
+        idx_raw   = _get(row, _COL_IDX)
         if not exp or exp == "None":
             continue
         try:
             idx_num = int(float(str(idx_raw)))
         except (TypeError, ValueError):
             idx_num = None
-        out[exp] = {"idx_num": idx_num, "referencia2": ref2, "tipo_proc": tipo, "city": city}
+        out[exp] = {"idx_num": idx_num, "referencia2": ref2, "tipo_proc": tipo,
+                    "city": city, "portfolio": portfolio}
 
     wb.close()
     print(f"[datatape] {len(out)} expedientes cargados desde: {os.path.basename(path)}")
@@ -853,6 +869,7 @@ def _ctfdo_type(fn_kw: str) -> Optional[Tuple[str, str]]:
 def process_exp(exp: str, exp_dir: str, rules: List[Tuple[str, str, str]],
                 idx_num: Optional[int],
                 asunto_codigo: str = "", common_dir: str = "",
+                portfolio: str = "",
                 exp_idx: int = 0, exp_total: int = 0) -> List[Dict]:
     rows: List[Dict] = []
 
@@ -1189,6 +1206,29 @@ def process_exp(exp: str, exp_dir: str, rules: List[Tuple[str, str, str]],
                 "ruta":                    os.path.join(common_dir, _notarial_fn),
             })
 
+    # ── Documentos comunes específicos por cartera (ONEY, etc.) ──
+    if common_dir and items and portfolio:
+        portfolio_norm = al(portfolio)
+        for port_kw, fn_common, idx_kw in _PORTFOLIO_COMMON_DOCS:
+            if al(port_kw) not in portfolio_norm:
+                continue
+            port_item = _find_in_index(idx_kw, items)
+            if port_item is None:
+                continue
+            rows.append({
+                "asunto_codigo":           asunto_codigo,
+                "referencia_demanda":      exp,
+                "nombre_fichero_original": fn_common,
+                "nombre_correcto":         f"DOC. {port_item.num} {port_item.desc}",
+                "numero_documento":        str(port_item.num),
+                "entrada_indice":          port_item.desc,
+                "numero_indice":           idx_num if idx_num is not None else "",
+                "status":                  "OK",
+                "motivo":                  f"portfolio:{port_kw}",
+                "fn_kw":                   idx_kw,
+                "ruta":                    os.path.join(common_dir, fn_common),
+            })
+
     # ── Fila del fichero de índice ────────────────────────────────
     if idx_pdf:
         rows.append({
@@ -1498,6 +1538,7 @@ def main(root: str) -> None:
             exp_folder, os.path.join(in_root, exp_folder), rules, idx_num,
             asunto_codigo=codes_map.get(exp_key, ""),
             common_dir=os.path.join(root, "doc_comun"),
+            portfolio=(info or {}).get("portfolio", ""),
             exp_idx=i, exp_total=total_exps,
         )
         all_rows.extend(exp_rows)
