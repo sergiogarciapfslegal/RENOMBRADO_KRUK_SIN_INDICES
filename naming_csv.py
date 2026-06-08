@@ -378,7 +378,9 @@ def load_datatape(path: str) -> Dict[str, Dict]:
     _COL_IDX       = "Indice"
     _COL_PORTFOLIO = "Name of Portfolio"
 
-    missing = [c for c in [_COL_EXP, _COL_REF2, _COL_CITY, _COL_TIPO, _COL_IDX, _COL_PORTFOLIO]
+    # _COL_IDX se omite del listado de "requeridas": ya no usamos la columna
+    # 'Indice' (el indice se extrae de la ultima pagina de la DEMANDA).
+    missing = [c for c in [_COL_EXP, _COL_REF2, _COL_CITY, _COL_TIPO, _COL_PORTFOLIO]
                if c not in headers]
     if missing:
         print(f"[datatape] WARN columnas no encontradas: {missing}")
@@ -1538,7 +1540,9 @@ def main(root: str) -> None:
         exp_key = exp_folder if exp_folder in exp_idx_map else folder_alias.get(exp_folder, exp_folder)
         info    = exp_idx_map.get(exp_key, {})
         idx_num = info.get("idx_num") if info else None
-        if idx_num is None:
+        # WARN solo si el expediente realmente no aparece en el datatape
+        # (ni por Original Contract Number ni por Whole Case Number aliased)
+        if exp_key not in exp_idx_map:
             print(f"[WARN] Expediente '{exp_folder}' no encontrado en datatape.xlsx")
         exp_rows, idx_count = process_exp(
             exp_folder, os.path.join(in_root, exp_folder), rules, idx_num,
