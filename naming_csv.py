@@ -553,6 +553,11 @@ def extract_last_page_as_index(exp_dir: str, exp: str,
     out_path = os.path.join(exp_dir, f"INDICE_{exp}.pdf")
     src_fn   = os.path.basename(demanda_pdf)
 
+    # Guardamos el error en una variable que sobreviva al except (Py3
+    # borra el nombre del except al salir del bloque, no podemos usar e_fitz
+    # despues del primer try sin reasignarlo)
+    fitz_err: str = ""
+
     try:
         import fitz
         doc = fitz.open(demanda_pdf)
@@ -565,7 +570,8 @@ def extract_last_page_as_index(exp_dir: str, exp: str,
         print(f"[indice] {_cnt}'{exp}': índice extraído de '{src_fn}' (última pág. {last + 1}/{last + 1}){_sufijo}")
         return out_path
     except Exception as e_fitz:
-        print(f"[indice] {_cnt}WARN '{exp}': fitz falló ({e_fitz}), reintentando con pypdf…")
+        fitz_err = f"{type(e_fitz).__name__}: {e_fitz}"
+        print(f"[indice] {_cnt}WARN '{exp}': fitz falló ({fitz_err}), reintentando con pypdf…")
 
     try:
         from pypdf import PdfReader, PdfWriter
@@ -577,8 +583,9 @@ def extract_last_page_as_index(exp_dir: str, exp: str,
         print(f"[indice] {_cnt}'{exp}': índice extraído de '{src_fn}' (pypdf, última pág. {len(reader.pages)}/{len(reader.pages)}){_sufijo}")
         return out_path
     except Exception as e_pypdf:
+        pypdf_err = f"{type(e_pypdf).__name__}: {e_pypdf}"
         print(f"[indice] {_cnt}ERROR '{exp}': no se pudo extraer última página de '{src_fn}': "
-              f"fitz={e_fitz} | pypdf={e_pypdf}{_sufijo}")
+              f"fitz=[{fitz_err}] | pypdf=[{pypdf_err}]{_sufijo}")
         return None
 
 # ──────────────────────────────────────────
